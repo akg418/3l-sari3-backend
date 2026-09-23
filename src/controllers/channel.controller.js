@@ -76,6 +76,15 @@ export class ChannelController {
     sendSuccess(res, { channel });
   });
 
+  /** HTTP twin of the `channel:read` socket event. */
+  markRead = asyncHandler(async (req, res) => {
+    const result = await this.channelService.markChannelRead(
+      { channelRef: req.validated.params.channelRef },
+      req.user,
+    );
+    sendSuccess(res, result);
+  });
+
   leave = asyncHandler(async (req, res) => {
     const result = await this.channelService.leaveChannel(
       { channelRef: req.validated.params.channelRef },

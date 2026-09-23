@@ -138,10 +138,33 @@ export class MessageService {
    * History is not filtered by when the reader joined: someone who joins a
    * channel sees the conversation that led up to their arrival.
    */
-  async listHistory({ channelId, channelRef, limit = LIMITS.MESSAGE_PAGE_SIZE, before }, actor) {
+  async listHistory(
+    { channelId, channelRef, limit = LIMITS.MESSAGE_PAGE_SIZE, before, after },
+    actor,
+  ) {
     const channel = await this.channelService.assertMembership(channelRef ?? channelId, actor.id);
 
     const pageSize = Math.min(limit, LIMITS.MESSAGE_PAGE_SIZE_MAX);
+
+    // Catch-up mode: everything newer than the cursor, already oldest-first.
+    if (after) {
+      const newer = await this.messageRepository.listAfter(channel.id, {
+        limit: pageSize + 1,
+        after,
+      });
+      const hasMore = newer.length > pageSize;
+      const page = hasMore ? newer.slice(0, pageSize) : newer;
+      const newest = page.at(-1);
+
+      return {
+        messages: toPublicMessageList(page),
+        pageInfo: {
+          hasMore,
+          nextCursor: hasMore && newest ? { createdAt: newest.createdAt, id: newest.id } : null,
+        },
+      };
+    }
+
     const messages = await this.messageRepository.listByChannel(channel.id, {
       limit: pageSize + 1,
       before,

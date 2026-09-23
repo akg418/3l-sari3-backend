@@ -9,7 +9,7 @@ import {
   joinChannelSchema,
   listChannelsSchema,
 } from '../validators/channel.validator.js';
-import { listMessagesSchema } from '../validators/message.validator.js';
+import { listMessagesSchema, sendMessageSchema } from '../validators/message.validator.js';
 
 /**
  * `:channelRef` is either a channel's unique name or its UUID, which is what
@@ -38,7 +38,9 @@ export const createChannelRouter = ({
   router.get('/:channelRef/members', validate(channelRefParamSchema), channelController.members);
   router.post('/:channelRef/join', validate(joinChannelSchema), channelController.join);
   router.post('/:channelRef/leave', validate(channelRefParamSchema), channelController.leave);
+  router.post('/:channelRef/read', validate(channelRefParamSchema), channelController.markRead);
   router.get('/:channelRef/messages', validate(listMessagesSchema), messageController.list);
+  router.post('/:channelRef/messages', validate(sendMessageSchema), messageController.send);
 
   router.post(
     '/:channelRef/attachments',

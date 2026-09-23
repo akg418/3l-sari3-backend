@@ -24,14 +24,15 @@ const bootstrap = async () => {
   const app = createApp(container);
   const httpServer = http.createServer(app);
 
-  const realtime = attachWebSocketLayer({ httpServer, container });
+  // WS_ENABLED=false serves the API alone; clients fall back to polling.
+  const realtime = env.ws.enabled ? attachWebSocketLayer({ httpServer, container }) : null;
   container.channelExpirationJob.start();
 
   await new Promise((resolve) => httpServer.listen(env.port, resolve));
   logger.info('HTTP server listening', {
     port: env.port,
     env: env.nodeEnv,
-    wsPath: env.ws.path,
+    wsPath: env.ws.enabled ? env.ws.path : null,
   });
 
   let shuttingDown = false;
@@ -42,7 +43,7 @@ const bootstrap = async () => {
     logger.info('Shutting down', { signal });
 
     container.channelExpirationJob.stop();
-    await realtime.close();
+    await realtime?.close();
     await new Promise((resolve) => httpServer.close(resolve));
     await disconnectDatabase();
 
