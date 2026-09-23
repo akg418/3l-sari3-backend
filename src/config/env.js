@@ -41,15 +41,21 @@ const schema = z.object({
   CHANNEL_EXPIRY_WARNING_SECONDS: z.coerce.number().int().positive().default(60),
   CHANNEL_SWEEP_INTERVAL_MS: z.coerce.number().int().min(200).default(1000),
 
+  /** Off by default: serverless hosts (Vercel) cannot hold sockets open. */
+  WS_ENABLED: booleanish(false),
   WS_PATH: z.string().startsWith('/').default('/ws'),
   WS_AUTH_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   WS_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
   WS_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(10_000),
   WS_RATE_LIMIT_MAX_EVENTS: z.coerce.number().int().positive().default(60),
 
+  /** Set to false to switch attachments off entirely. */
+  ATTACHMENTS_ENABLED: booleanish(true),
+  /** `mongo` keeps bytes in the database (no disk writes); `local` uses UPLOAD_DIR. */
+  STORAGE_DRIVER: z.enum(['mongo', 'local']).default('mongo'),
   UPLOAD_DIR: z.string().min(1).default('./storage/uploads'),
-  UPLOAD_MAX_IMAGE_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
-  UPLOAD_MAX_FILE_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
+  UPLOAD_MAX_IMAGE_BYTES: z.coerce.number().int().positive().default(4 * 1024 * 1024),
+  UPLOAD_MAX_FILE_BYTES: z.coerce.number().int().positive().default(4 * 1024 * 1024),
   UPLOAD_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   UPLOAD_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
 
@@ -99,6 +105,8 @@ export const env = Object.freeze({
   },
 
   uploads: {
+    enabled: raw.ATTACHMENTS_ENABLED,
+    storageDriver: raw.STORAGE_DRIVER,
     directory: raw.UPLOAD_DIR,
     maxImageBytes: raw.UPLOAD_MAX_IMAGE_BYTES,
     maxFileBytes: raw.UPLOAD_MAX_FILE_BYTES,
@@ -107,6 +115,7 @@ export const env = Object.freeze({
   },
 
   ws: {
+    enabled: raw.WS_ENABLED,
     path: raw.WS_PATH,
     authTimeoutMs: raw.WS_AUTH_TIMEOUT_MS,
     heartbeatIntervalMs: raw.WS_HEARTBEAT_INTERVAL_MS,

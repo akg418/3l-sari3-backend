@@ -25,11 +25,30 @@ const corsOptions = {
 };
 
 /**
+ * Runs the expiration sweep inline, at most once per interval per instance.
+ * Serverless functions cannot keep a timer alive between requests, so the
+ * traffic itself drives expiry; MongoDB TTL indexes cover idle periods.
+ */
+const sweepOnRequest = (job, intervalMs) => {
+  let lastRunAt = 0;
+  return async (_req, _res, next) => {
+    const now = Date.now();
+    if (now - lastRunAt >= intervalMs) {
+      lastRunAt = now;
+      await job.tick(new Date(now));
+    }
+    next();
+  };
+};
+
+/**
  * Builds the Express application from an already-composed container.
  * It never touches the database or the network, which keeps it trivial to
  * mount inside a test with `supertest`.
+ *
+ * `sweepExpiredOnRequest` is for hosts without a long-running process.
  */
-export const createApp = (container) => {
+export const createApp = (container, { sweepExpiredOnRequest = false } = {}) => {
   const app = express();
 
   if (env.trustProxy) app.set('trust proxy', 1);
@@ -40,6 +59,10 @@ export const createApp = (container) => {
   app.use(express.json({ limit: '64kb' }));
   app.use(requestContext);
   app.use(generalRateLimiter);
+
+  if (sweepExpiredOnRequest) {
+    app.use(sweepOnRequest(container.channelExpirationJob, env.channel.sweepIntervalMs));
+  }
 
   const authenticate = createAuthenticateMiddleware({
     tokenService: container.tokenService,

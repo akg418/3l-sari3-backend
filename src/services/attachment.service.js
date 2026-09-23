@@ -51,6 +51,12 @@ export class AttachmentService {
    * message claims it, and it is only ever readable by channel members.
    */
   async upload({ channelRef, file }, actor) {
+    if (!this.config.enabled) {
+      throw new AppError(ERROR_CODES.ATTACHMENTS_DISABLED, 'File uploads are turned off.', {
+        status: 403,
+      });
+    }
+
     const channel = await this.channelService.assertMembership(channelRef, actor.id);
 
     if (!file?.buffer?.length) {
@@ -100,7 +106,12 @@ export class AttachmentService {
     });
 
     try {
-      await this.storage.save({ scope: channel.id, key: attachmentId, buffer: file.buffer });
+      await this.storage.save({
+        scope: channel.id,
+        key: attachmentId,
+        buffer: file.buffer,
+        expiresAt: channel.expiresAt,
+      });
     } catch (error) {
       await this.attachmentRepository.deleteById(attachmentId);
       logger.error('Failed to store attachment', { attachmentId, error: error.message });
@@ -178,6 +189,7 @@ export class AttachmentService {
    */
   describeConstraints() {
     return {
+      enabled: this.config.enabled,
       maxImageBytes: this.config.maxImageBytes,
       maxFileBytes: this.config.maxFileBytes,
       maxPerMessage: LIMITS.ATTACHMENTS_PER_MESSAGE,

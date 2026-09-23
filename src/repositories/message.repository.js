@@ -32,6 +32,29 @@ export class MessageRepository extends BaseRepository {
   }
 
   /**
+   * Oldest-first messages newer than a keyset cursor - what a polling client
+   * asks for to catch up on whatever arrived since its last sync.
+   */
+  async listAfter(channelId, { limit = 50, after }) {
+    const createdAt = new Date(after.createdAt);
+    const filter = {
+      channelId,
+      $or: [
+        { createdAt: { $gt: createdAt } },
+        ...(after.id ? [{ createdAt, _id: { $gt: after.id } }] : []),
+      ],
+    };
+
+    const messages = await this.model
+      .find(filter)
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(limit)
+      .exec();
+
+    return messages.map((message) => message.toJSON());
+  }
+
+  /**
    * Unread counts for a set of memberships, in one round trip.
    *
    * Each channel has its own cutoff, so the match is a union of per-channel
