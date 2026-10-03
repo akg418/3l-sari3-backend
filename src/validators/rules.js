@@ -11,13 +11,14 @@ export const PATTERNS = Object.freeze({
   // At least 3 characters, never starts with a digit, no whitespace.
   USERNAME: /^[A-Za-z_][A-Za-z0-9_.-]{2,23}$/,
   // Never starts with a digit, no whitespace, at most 20 characters.
-  CHANNEL_NAME: /^[A-Za-z_][A-Za-z0-9_.-]{0,19}$/,
+  /** Letters in any script (Arabic included), so marks such as harakat are allowed too. */
+  CHANNEL_NAME: /^[\p{L}_][\p{L}\p{M}\p{N}_.-]{0,19}$/u,
   UUID: UUID_PATTERN,
 });
 
 export const MESSAGES = Object.freeze({
   USERNAME:
-    'Username must be at least 3 characters, cannot start with a number, cannot contain spaces, and may only use letters, numbers, "_", "." or "-".',
+    'Username must be at least 3 characters, cannot start with a number, cannot contain spaces, and may only use letters (any language), numbers, "_", "." or "-".',
   CHANNEL_NAME:
     'Channel name cannot start with a number, cannot contain spaces, may only use letters, numbers, "_", "." or "-", and must be at most 20 characters.',
 });
@@ -28,9 +29,9 @@ export const uuidField = (label = 'identifier') =>
 /**
  * How a channel is named in a URL: either its UUID or its unique name.
  *
- * Channel names are already restricted to characters that are safe in a path
- * segment - no spaces, no slashes, no percent-encoding needed - so the name can
- * be used verbatim as the public identifier.
+ * Channel names contain no spaces or slashes, so the name can be the public
+ * identifier. Non-Latin names (e.g. Arabic) are percent-encoded by the client
+ * and decoded by Express before they reach this check.
  */
 export const channelRefField = z
   .string({ required_error: 'A channel identifier is required.' })

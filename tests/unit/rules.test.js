@@ -18,11 +18,11 @@ describe('Validation rules', () => {
   });
 
   describe('channel name pattern', () => {
-    it.each(['general', 'gaming', 'room123', 'my-channel', 'a'])('accepts %s', (name) => {
+    it.each(['general', 'gaming', 'room123', 'my-channel', 'a', 'ايييه-اللي-بيحصل', 'قناة_1'])('accepts %s', (name) => {
       expect(PATTERNS.CHANNEL_NAME.test(name)).toBe(true);
     });
 
-    it.each(['123room', 'my room', 'this-channel-name-is-too-long', '', 'my#channel'])(
+    it.each(['123room', '٣غرفة', 'my room', 'this-channel-name-is-too-long', '', 'my#channel'])(
       'rejects %s',
       (name) => {
         expect(PATTERNS.CHANNEL_NAME.test(name)).toBe(false);
