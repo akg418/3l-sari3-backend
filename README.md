@@ -6,6 +6,12 @@ REST + WebSocket API for temporary chat channels. Node.js, Express, MongoDB and
 > The React client that talks to this API lives in
 > [3l-sari3-frontend](https://github.com/akg418/3l-sari3-frontend).
 
+> **WebSocket is off in the hosted version.** The frontend, backend and
+> database all run on free tiers, and free serverless hosting cannot keep
+> WebSocket connections open. Messages from other people or devices are not
+> pushed live: the app fetches new ones every 5 minutes, or straight away when
+> you press **⟳ Sync**.
+
 A channel exists for between 1 and 60 minutes. When its time is up the channel
 and every message inside it are **deleted from MongoDB**, and everyone connected
 is told in real time.
