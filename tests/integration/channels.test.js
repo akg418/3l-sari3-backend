@@ -541,4 +541,25 @@ describe('Channels', () => {
       expect(response.body.data.channels[0].id).toBe(mineChannel.body.data.channel.id);
     });
   });
+
+  it('accepts an Arabic channel name and resolves it from an encoded URL', async () => {
+    const owner = await registerUser(api);
+    const name = 'ايييه-اللي-بيحصل';
+    const created = await createChannel(api, owner.token, { name });
+    expect(created.status).toBe(201);
+    expect(created.body.data.channel.name).toBe(name);
+
+    const response = await api
+      .get(`/api/channels/${encodeURIComponent(name)}`)
+      .set('Authorization', owner.authHeader)
+      .expect(200);
+    expect(response.body.data.channel.id).toBe(created.body.data.channel.id);
+
+    await api
+      .post(`/api/channels/${encodeURIComponent(name)}/messages`)
+      .set('Authorization', owner.authHeader)
+      .send({ content: 'مرحبا' })
+      .expect(201);
+  });
 });
+
