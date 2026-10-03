@@ -19,16 +19,20 @@ export class ChannelService {
     channelRepository,
     membershipRepository,
     messageRepository,
+    attachmentRepository,
     userRepository,
     passwordService,
+    statsService,
     eventBus,
     config,
   }) {
     this.channelRepository = channelRepository;
     this.membershipRepository = membershipRepository;
     this.messageRepository = messageRepository;
+    this.attachmentRepository = attachmentRepository;
     this.userRepository = userRepository;
     this.passwordService = passwordService;
+    this.statsService = statsService;
     this.eventBus = eventBus;
     this.config = config;
   }
@@ -44,6 +48,7 @@ export class ChannelService {
     }
 
     await this.#assertChannelQuota(actor.id);
+    await this.statsService?.ready();
 
     const passwordHash =
       type === CHANNEL_TYPES.PRIVATE ? await this.passwordService.hash(password) : null;
@@ -59,6 +64,8 @@ export class ChannelService {
       userId: actor.id,
       expiresAt: channel.expiresAt,
     });
+
+    await this.statsService?.recordChannelCreated();
 
     const publicChannel = toPublicChannel(channel, {
       memberCount: 1,
@@ -291,6 +298,14 @@ export class ChannelService {
   async joinChannel({ channelId, channelRef, password }, actor) {
     const channel = await this.getActiveChannelOrFail(channelRef ?? channelId, { withSecret: true });
 
+    // Before the password: a blocked user is out whatever they know.
+    if (await this.channelRepository.isBlocked(channel.id, actor.id)) {
+      throw forbidden(
+        ERROR_CODES.CHANNEL_USER_BLOCKED,
+        'The owner of this channel has blocked you from it.',
+      );
+    }
+
     if (channel.type === CHANNEL_TYPES.PRIVATE) {
       await this.#assertPrivateChannelAccess(channel, { password, actor });
     }
@@ -372,6 +387,105 @@ export class ChannelService {
       this.eventBus.emit(DOMAIN_EVENTS.CHANNEL_MEMBER_LEFT, { channelId: channel.id, actor });
     }
     return { channelId: channel.id, left };
+  }
+
+  // ------------------------------------------------------- owner controls
+
+  #assertOwner(channel, actor) {
+    if (channel.createdBy !== actor.id) {
+      throw forbidden(ERROR_CODES.CHANNEL_OWNER_ONLY, 'Only the channel owner can do that.');
+    }
+  }
+
+  #extensionLimitReached() {
+    return conflict(
+      ERROR_CODES.CHANNEL_EXTENSION_LIMIT_REACHED,
+      `A channel can be extended at most ${LIMITS.CHANNEL_MAX_EXTENSIONS} times.`,
+    );
+  }
+
+  /**
+   * Adds a fixed block of time to a live channel. Owner only, and a limited
+   * number of times. Messages, memberships and uploads carry their own copy
+   * of the expiry for the TTL indexes, so they are moved along with it.
+   */
+  async extendChannel({ channelRef }, actor) {
+    const current = await this.getActiveChannelOrFail(channelRef);
+    this.#assertOwner(current, actor);
+    if ((current.extensionCount ?? 0) >= LIMITS.CHANNEL_MAX_EXTENSIONS) {
+      throw this.#extensionLimitReached();
+    }
+
+    const channel = await this.channelRepository.extend({
+      channelId: current.id,
+      ownerId: actor.id,
+      minutes: LIMITS.CHANNEL_EXTENSION_MINUTES,
+      maxExtensions: LIMITS.CHANNEL_MAX_EXTENSIONS,
+    });
+    // Lost a race with another extension, or expired in the meantime.
+    if (!channel) throw this.#extensionLimitReached();
+
+    await Promise.all([
+      this.messageRepository.setExpiryByChannelId(channel.id, channel.expiresAt),
+      this.membershipRepository.setExpiryByChannelId(channel.id, channel.expiresAt),
+      this.attachmentRepository?.setExpiryByChannelId(channel.id, channel.expiresAt),
+    ]);
+
+    const memberCounts = await this.membershipRepository.countByChannelIds([channel.id]);
+    const publicChannel = toPublicChannel(channel, {
+      memberCount: memberCounts.get(channel.id) ?? 0,
+      isMember: true,
+      viewerId: actor.id,
+    });
+
+    this.eventBus.emit(DOMAIN_EVENTS.CHANNEL_EXTENDED, {
+      channel: toDirectoryChannel(publicChannel),
+      actor,
+    });
+    return publicChannel;
+  }
+
+  /**
+   * Bans a user from a channel, public or private: removes them if they are
+   * in it, and refuses every later join. The owner cannot block themselves.
+   */
+  async blockUser({ channelRef, userId }, actor) {
+    const channel = await this.getActiveChannelOrFail(channelRef);
+    this.#assertOwner(channel, actor);
+
+    if (userId === channel.createdBy) {
+      throw forbidden(ERROR_CODES.CHANNEL_CANNOT_BLOCK_OWNER, 'You cannot block yourself.');
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw notFound(ERROR_CODES.USER_NOT_FOUND, 'That user does not exist.');
+
+    await this.channelRepository.block(channel.id, { userId: user.id, username: user.username });
+    const removed = await this.membershipRepository.leave({ channelId: channel.id, userId: user.id });
+
+    this.eventBus.emit(DOMAIN_EVENTS.CHANNEL_MEMBER_BLOCKED, {
+      channelId: channel.id,
+      channelName: channel.name,
+      user: { id: user.id, username: user.username },
+      removed,
+      actor,
+    });
+
+    return { channelId: channel.id, blocked: await this.channelRepository.listBlocked(channel.id) };
+  }
+
+  async unblockUser({ channelRef, userId }, actor) {
+    const channel = await this.getActiveChannelOrFail(channelRef);
+    this.#assertOwner(channel, actor);
+
+    await this.channelRepository.unblock(channel.id, userId);
+    return { channelId: channel.id, blocked: await this.channelRepository.listBlocked(channel.id) };
+  }
+
+  async listBlockedUsers({ channelRef }, actor) {
+    const channel = await this.getActiveChannelOrFail(channelRef);
+    this.#assertOwner(channel, actor);
+    return { channelId: channel.id, blocked: await this.channelRepository.listBlocked(channel.id) };
   }
 
   // ----------------------------------------------------------- authorisation

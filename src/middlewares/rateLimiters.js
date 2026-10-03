@@ -42,3 +42,11 @@ export const authRateLimiter = rateLimit({
   limit: env.rateLimit.auth.max,
   skipSuccessfulRequests: false,
 });
+
+/** Only wrong access codes count, so viewing the stats page never locks anyone out. */
+export const statsRateLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: env.rateLimit.auth.windowMs,
+  limit: env.rateLimit.auth.max,
+  skipSuccessfulRequests: true,
+});

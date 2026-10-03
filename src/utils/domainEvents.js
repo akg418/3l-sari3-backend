@@ -15,6 +15,8 @@ export const DOMAIN_EVENTS = Object.freeze({
   CHANNEL_EXPIRED: 'channel.expired',
   CHANNEL_MEMBER_JOINED: 'channel.member.joined',
   CHANNEL_MEMBER_LEFT: 'channel.member.left',
+  CHANNEL_MEMBER_BLOCKED: 'channel.member.blocked',
+  CHANNEL_EXTENDED: 'channel.extended',
   MESSAGE_CREATED: 'message.created',
 });
 

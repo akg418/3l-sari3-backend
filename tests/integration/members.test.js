@@ -298,4 +298,33 @@ describe('Channel members and presence', () => {
       expect(response.body.data.members[0].isOwner).toBe(true);
     });
   });
+
+  describe('blocking', () => {
+    it('unsubscribes the blocked user at once and tells them why', async () => {
+      const owner = await connectedUser();
+      const guest = await connectedUser();
+      const channel = await createChannelOver(owner.token, { name: 'kick' });
+      await joinOver(owner, channel.id);
+      await joinOver(guest, channel.id);
+
+      await api
+        .post('/api/channels/kick/block')
+        .set('Authorization', owner.authHeader)
+        .send({ userId: guest.user.id })
+        .expect(200);
+
+      const notice = await guest.client.waitFor('channel:blocked');
+      expect(notice.data.channelId).toBe(channel.id);
+
+      await api
+        .post('/api/channels/kick/messages')
+        .set('Authorization', owner.authHeader)
+        .send({ content: 'after the block' })
+        .expect(201);
+
+      await owner.client.waitFor('message:new');
+      expect(guest.client.received('message:new')).toHaveLength(0);
+    });
+  });
 });
+

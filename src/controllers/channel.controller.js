@@ -92,4 +92,45 @@ export class ChannelController {
     );
     sendSuccess(res, result);
   });
+
+  /** Owner only: adds a fixed block of time, a limited number of times. */
+  extend = asyncHandler(async (req, res) => {
+    const channel = await this.channelService.extendChannel(
+      { channelRef: req.validated.params.channelRef },
+      req.user,
+    );
+    sendSuccess(res, { channel });
+  });
+
+  blocked = asyncHandler(async (req, res) => {
+    sendSuccess(
+      res,
+      await this.channelService.listBlockedUsers(
+        { channelRef: req.validated.params.channelRef },
+        req.user,
+      ),
+    );
+  });
+
+  block = asyncHandler(async (req, res) => {
+    const { params, body } = req.validated;
+    sendSuccess(
+      res,
+      await this.channelService.blockUser(
+        { channelRef: params.channelRef, userId: body.userId },
+        req.user,
+      ),
+    );
+  });
+
+  unblock = asyncHandler(async (req, res) => {
+    const { params, body } = req.validated;
+    sendSuccess(
+      res,
+      await this.channelService.unblockUser(
+        { channelRef: params.channelRef, userId: body.userId },
+        req.user,
+      ),
+    );
+  });
 }

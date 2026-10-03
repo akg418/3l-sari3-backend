@@ -81,3 +81,9 @@ export const attachmentParamSchema = z.object({
     attachmentId: uuidField('attachment id'),
   }),
 });
+
+/** Owner moderation: the user to block or unblock. */
+export const channelUserSchema = z.object({
+  params: z.object({ channelRef: channelRefField }),
+  body: z.object({ userId: uuidField('user id') }),
+});

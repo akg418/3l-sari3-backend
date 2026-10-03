@@ -54,6 +54,10 @@ export const LIMITS = Object.freeze({
   CHANNEL_SEARCH_MAX: 64,
   ATTACHMENTS_PER_MESSAGE: 5,
   ORIGINAL_FILENAME_MAX: 180,
+  /** Minutes the owner can add to a live channel in one extension. */
+  CHANNEL_EXTENSION_MINUTES: 10,
+  /** How many times a channel can be extended over its whole lifetime. */
+  CHANNEL_MAX_EXTENSIONS: 6,
 });
 
 /**

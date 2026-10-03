@@ -1,4 +1,4 @@
-import { CHANNEL_TYPES } from '../constants/domain.js';
+import { CHANNEL_TYPES, LIMITS } from '../constants/domain.js';
 
 /**
  * The single definition of what a client is allowed to know about a channel.
@@ -22,6 +22,9 @@ export const toPublicChannel = (
   durationMinutes: channel.durationMinutes,
   createdAt: new Date(channel.createdAt).toISOString(),
   expiresAt: new Date(channel.expiresAt).toISOString(),
+  extensionsUsed: channel.extensionCount ?? 0,
+  extensionsRemaining: Math.max(0, LIMITS.CHANNEL_MAX_EXTENSIONS - (channel.extensionCount ?? 0)),
+  extensionMinutes: LIMITS.CHANNEL_EXTENSION_MINUTES,
   ...(memberCount === undefined ? {} : { memberCount }),
   ...(onlineCount === undefined ? {} : { onlineCount }),
   ...(isMember === undefined ? {} : { isMember }),

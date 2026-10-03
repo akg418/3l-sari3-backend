@@ -64,6 +64,15 @@ const schema = z.object({
   AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
   AUTH_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(20),
 
+  /** Code required to open the statistics page. Unset disables it. */
+  STATS_ACCESS_CODE: z
+    .string()
+    .optional()
+    .transform((value) => value || undefined)
+    .refine((value) => value === undefined || value.length >= 8, {
+      message: 'STATS_ACCESS_CODE must be at least 8 characters',
+    }),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   TRUST_PROXY: booleanish(false),
 });
@@ -130,6 +139,8 @@ export const env = Object.freeze({
     auth: { windowMs: raw.AUTH_RATE_LIMIT_WINDOW_MS, max: raw.AUTH_RATE_LIMIT_MAX_REQUESTS },
     upload: { windowMs: raw.UPLOAD_RATE_LIMIT_WINDOW_MS, max: raw.UPLOAD_RATE_LIMIT_MAX_REQUESTS },
   },
+
+  stats: { accessCode: raw.STATS_ACCESS_CODE ?? null },
 
   logLevel: raw.LOG_LEVEL,
 });

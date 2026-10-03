@@ -22,6 +22,10 @@ export const SERVER_EVENTS = Object.freeze({
   CHANNEL_MEMBER_LEFT: 'channel:member_left',
   CHANNEL_EXPIRING: 'channel:expiring',
   CHANNEL_EXPIRED: 'channel:expired',
+  /** The owner added time; carries the updated channel. */
+  CHANNEL_EXTENDED: 'channel:extended',
+  /** Sent to a user the owner just blocked, so their client can close the channel. */
+  CHANNEL_BLOCKED: 'channel:blocked',
 
   /** Full roster snapshot: sent on join and whenever membership changes. */
   CHANNEL_MEMBERS: 'channel:members',
