@@ -6,6 +6,7 @@ import {
   ChannelMembershipRepository,
   ChannelRepository,
   MessageRepository,
+  StatsRepository,
   UserRepository,
 } from './repositories/index.js';
 import { createStorage } from './services/storage/index.js';
@@ -16,11 +17,13 @@ import { ChannelService } from './services/channel.service.js';
 import { ChannelCleanupService } from './services/channelCleanup.service.js';
 import { AttachmentService } from './services/attachment.service.js';
 import { MessageService } from './services/message.service.js';
+import { StatsService } from './services/stats.service.js';
 import { ChannelExpirationJob } from './jobs/channelExpiration.job.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { ChannelController } from './controllers/channel.controller.js';
 import { MessageController } from './controllers/message.controller.js';
 import { AttachmentController } from './controllers/attachment.controller.js';
+import { StatsController } from './controllers/stats.controller.js';
 
 /**
  * Composition root.
@@ -36,6 +39,7 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
   const messageRepository = overrides.messageRepository ?? new MessageRepository();
   const membershipRepository = overrides.membershipRepository ?? new ChannelMembershipRepository();
   const attachmentRepository = overrides.attachmentRepository ?? new AttachmentRepository();
+  const statsRepository = overrides.statsRepository ?? new StatsRepository();
 
   const storage = overrides.storage ?? createStorage();
   const passwordService = overrides.passwordService ?? new PasswordService();
@@ -46,12 +50,22 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
 
   const authService = new AuthService({ userRepository, passwordService, tokenService });
 
+  const statsService = new StatsService({
+    statsRepository,
+    userRepository,
+    channelRepository,
+    messageRepository,
+    config: overrides.statsConfig ?? env.stats,
+  });
+
   const channelService = new ChannelService({
     channelRepository,
     membershipRepository,
     messageRepository,
+    attachmentRepository,
     userRepository,
     passwordService,
+    statsService,
     eventBus,
     config: env.channel,
   });
@@ -67,6 +81,7 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
     messageRepository,
     channelService,
     attachmentService,
+    statsService,
     eventBus,
   });
 
@@ -101,6 +116,7 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
     messageRepository,
     membershipRepository,
     attachmentRepository,
+    statsRepository,
 
     passwordService,
     tokenService,
@@ -109,6 +125,7 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
     channelCleanupService,
     attachmentService,
     messageService,
+    statsService,
 
     channelExpirationJob,
 
@@ -116,5 +133,6 @@ export const createContainer = ({ eventBus = createDomainEventBus(), overrides =
     channelController: new ChannelController({ channelService, presenceReader }),
     messageController: new MessageController({ messageService }),
     attachmentController: new AttachmentController({ attachmentService }),
+    statsController: new StatsController({ statsService }),
   };
 };

@@ -136,6 +136,70 @@ export class ChannelRepository extends BaseRepository {
     return result.modifiedCount === 1;
   }
 
+  /**
+   * Adds `minutes` to a live channel's lifetime, if its owner still has an
+   * extension left. One conditional update, so two racing clicks can never
+   * spend more than the allowance. Re-arms the one-minute warning.
+   */
+  async extend({ channelId, ownerId, minutes, maxExtensions, at = new Date() }) {
+    const channel = await this.model
+      .findOneAndUpdate(
+        {
+          _id: channelId,
+          createdBy: ownerId,
+          expiresAt: { $gt: at },
+          extensionCount: { $not: { $gte: maxExtensions } },
+        },
+        [
+          {
+            $set: {
+              expiresAt: { $add: ['$expiresAt', minutes * 60_000] },
+              durationMinutes: { $add: ['$durationMinutes', minutes] },
+              extensionCount: { $add: [{ $ifNull: ['$extensionCount', 0] }, 1] },
+              reminderSentAt: null,
+            },
+          },
+        ],
+        { new: true },
+      )
+      .exec();
+    return channel ? channel.toJSON() : null;
+  }
+
+  async isBlocked(channelId, userId) {
+    return Boolean(await this.model.exists({ _id: channelId, 'blockedUsers.userId': userId }).exec());
+  }
+
+  async listBlocked(channelId) {
+    const channel = await this.model.findById(channelId).select('blockedUsers').lean().exec();
+    return (channel?.blockedUsers ?? []).map((entry) => ({
+      id: entry.userId,
+      username: entry.username,
+      blockedAt: entry.blockedAt,
+    }));
+  }
+
+  /** Idempotent: blocking someone already blocked changes nothing. */
+  async block(channelId, { userId, username, at = new Date() }) {
+    await this.model
+      .updateOne(
+        { _id: channelId, 'blockedUsers.userId': { $ne: userId } },
+        { $push: { blockedUsers: { userId, username, blockedAt: at } } },
+      )
+      .exec();
+  }
+
+  async unblock(channelId, userId) {
+    const result = await this.model
+      .updateOne({ _id: channelId }, { $pull: { blockedUsers: { userId } } })
+      .exec();
+    return result.modifiedCount === 1;
+  }
+
+  countActive(at = new Date()) {
+    return this.model.countDocuments({ expiresAt: { $gt: at } }).exec();
+  }
+
   isDuplicateName(error) {
     return isDuplicateKeyError(error, 'nameKey');
   }

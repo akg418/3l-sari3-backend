@@ -32,10 +32,11 @@ const deriveMessageType = (attachments) => {
 };
 
 export class MessageService {
-  constructor({ messageRepository, channelService, attachmentService, eventBus }) {
+  constructor({ messageRepository, channelService, attachmentService, statsService, eventBus }) {
     this.messageRepository = messageRepository;
     this.channelService = channelService;
     this.attachmentService = attachmentService;
+    this.statsService = statsService;
     this.eventBus = eventBus;
   }
 
@@ -92,6 +93,8 @@ export class MessageService {
       );
     }
 
+    await this.statsService?.ready();
+
     // The id is generated up front so the uploads can be bound to it.
     const messageId = uuidV7();
 
@@ -126,6 +129,8 @@ export class MessageService {
         );
       }
     }
+
+    await this.statsService?.recordMessageSent();
 
     const publicMessage = toPublicMessage(message);
     this.eventBus.emit(DOMAIN_EVENTS.MESSAGE_CREATED, { message: publicMessage, channel });

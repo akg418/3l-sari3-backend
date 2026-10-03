@@ -45,6 +45,11 @@ export class AttachmentRepository extends BaseRepository {
     return this.model.countDocuments({ channelId }).exec();
   }
 
+  /** Keeps children in step with an extended channel, so TTL cannot reap them early. */
+  setExpiryByChannelId(channelId, expiresAt) {
+    return this.model.updateMany({ channelId }, { $set: { expiresAt } }).exec();
+  }
+
   deleteByChannelId(channelId) {
     return this.model.deleteMany({ channelId }).exec();
   }

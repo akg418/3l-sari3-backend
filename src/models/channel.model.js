@@ -36,6 +36,27 @@ const channelSchema = new mongoose.Schema(
      */
     reminderSentAt: { type: Date, default: null },
 
+    /** How many times the owner has extended this channel's lifetime. */
+    extensionCount: { type: Number, default: 0, min: 0 },
+
+    /**
+     * Users the owner has banned from this channel. Checked on every join, so
+     * neither the directory nor a password gets them back in.
+     */
+    blockedUsers: {
+      type: [
+        new mongoose.Schema(
+          {
+            userId: { type: String, required: true },
+            username: { type: String, required: true },
+            blockedAt: { type: Date, required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+
     /**
      * Declared explicitly rather than via `timestamps`, because the service
      * derives `expiresAt` from this exact instant. Letting mongoose stamp it
@@ -47,7 +68,7 @@ const channelSchema = new mongoose.Schema(
   { timestamps: false, collection: 'channels' },
 );
 
-channelSchema.plugin(uuidPrimaryKey, { hidden: ['passwordHash', 'nameKey', 'reminderSentAt'] });
+channelSchema.plugin(uuidPrimaryKey, { hidden: ['passwordHash', 'nameKey', 'reminderSentAt', 'blockedUsers'] });
 
 // Database-level uniqueness: two concurrent create requests cannot both win.
 channelSchema.index({ nameKey: 1 }, { unique: true, name: 'uniq_channel_name_key' });

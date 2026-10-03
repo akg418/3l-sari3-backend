@@ -20,7 +20,7 @@ const corsOptions = {
   },
   credentials: false,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Stats-Code'],
   maxAge: 600,
 };
 
@@ -77,6 +77,7 @@ export const createApp = (container, { sweepExpiredOnRequest = false } = {}) => 
       channelController: container.channelController,
       messageController: container.messageController,
       attachmentController: container.attachmentController,
+      statsController: container.statsController,
     }),
   );
 

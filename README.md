@@ -349,6 +349,11 @@ same channel, which is what lets a link read `/channels/general`.
 | `GET` | `/api/channels/:channelRef/messages` | ✔ | Transcript, members only |
 | `POST` | `/api/channels/:channelRef/attachments` | ✔ | Upload one file (multipart, field `file`) |
 | `GET` | `/api/channels/:channelRef/attachments/:attachmentId` | ✔ | Download, members only |
+| `POST` | `/api/channels/:channelRef/extend` | ✔ | Owner only: +10 minutes, at most 6 times. Returns `CHANNEL_EXTENSION_LIMIT_REACHED` after that |
+| `GET` | `/api/channels/:channelRef/blocked` | ✔ | Owner only: users blocked from the channel |
+| `POST` | `/api/channels/:channelRef/block` | ✔ | Owner only, body `{ userId }`: removes the user and refuses their rejoin (`CHANNEL_USER_BLOCKED`), even with the password |
+| `POST` | `/api/channels/:channelRef/unblock` | ✔ | Owner only, body `{ userId }` |
+| `GET` | `/api/stats` | `X-Stats-Code` header | All-time users, channels created, messages sent (never decrease on expiry), live channels. Disabled unless `STATS_ACCESS_CODE` is set |
 
 Authenticate with `Authorization: Bearer <token>`.
 

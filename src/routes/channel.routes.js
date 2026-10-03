@@ -5,6 +5,7 @@ import { uploadRateLimiter } from '../middlewares/rateLimiters.js';
 import {
   attachmentParamSchema,
   channelRefParamSchema,
+  channelUserSchema,
   createChannelSchema,
   joinChannelSchema,
   listChannelsSchema,
@@ -39,6 +40,10 @@ export const createChannelRouter = ({
   router.post('/:channelRef/join', validate(joinChannelSchema), channelController.join);
   router.post('/:channelRef/leave', validate(channelRefParamSchema), channelController.leave);
   router.post('/:channelRef/read', validate(channelRefParamSchema), channelController.markRead);
+  router.post('/:channelRef/extend', validate(channelRefParamSchema), channelController.extend);
+  router.get('/:channelRef/blocked', validate(channelRefParamSchema), channelController.blocked);
+  router.post('/:channelRef/block', validate(channelUserSchema), channelController.block);
+  router.post('/:channelRef/unblock', validate(channelUserSchema), channelController.unblock);
   router.get('/:channelRef/messages', validate(listMessagesSchema), messageController.list);
   router.post('/:channelRef/messages', validate(sendMessageSchema), messageController.send);
 

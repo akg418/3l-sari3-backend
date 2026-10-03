@@ -1,7 +1,7 @@
 import { DOMAIN_EVENTS } from '../utils/domainEvents.js';
 import { logger } from '../config/logger.js';
 import { ROOMS, SERVER_EVENTS } from './events.js';
-import { onlineUserIdsIn } from './presence.js';
+import { detachFromChannel, onlineUserIdsIn } from './presence.js';
 import { toDirectoryChannel } from '../serializers/channel.serializer.js';
 
 /**
@@ -51,6 +51,31 @@ export const registerRealtimeBridge = ({ eventBus, rooms, channelService }) => {
 
     eventBus.on(DOMAIN_EVENTS.CHANNEL_MEMBER_JOINED, ({ channel }) => broadcastRoster(channel.id)),
     eventBus.on(DOMAIN_EVENTS.CHANNEL_MEMBER_LEFT, ({ channelId }) => broadcastRoster(channelId)),
+
+    eventBus.on(DOMAIN_EVENTS.CHANNEL_EXTENDED, ({ channel }) => {
+      rooms.broadcast(ROOMS.LOBBY, SERVER_EVENTS.CHANNEL_EXTENDED, {
+        channel: toDirectoryChannel(channel),
+      });
+    }),
+
+    /**
+     * A blocked user's sockets are unsubscribed at once - otherwise they would
+     * keep receiving messages until they reconnected - and told why.
+     */
+    eventBus.on(DOMAIN_EVENTS.CHANNEL_MEMBER_BLOCKED, ({ channelId, channelName, user }) => {
+      const room = ROOMS.channel(channelId);
+      for (const connection of [...rooms.members(room)]) {
+        if (connection.userId === user.id) detachFromChannel({ rooms, connection, channelId });
+      }
+
+      rooms.broadcast(ROOMS.user(user.id), SERVER_EVENTS.CHANNEL_BLOCKED, {
+        channelId,
+        channelName,
+        message: 'The owner of this channel has blocked you from it.',
+      });
+
+      return broadcastRoster(channelId);
+    }),
 
     /**
      * The one-minute warning is addressed to the channel's members: the people
